@@ -178,6 +178,10 @@ class MeshStatisticsLogic(ScriptedLoadableModuleLogic):
 
     def __init__(self):
         self.numberOfDecimals = 3
+	system = qt.QLocale().system()
+        self.decimalPoint = chr(system.decimalPoint())
+
+
 
     def updateInterface(self, tableField, ROIComboBox, ROIList, modelList, layout):
         tableField.clearContents()
@@ -427,11 +431,8 @@ class MeshStatisticsLogic(ScriptedLoadableModuleLogic):
 
     def exportAllAsCSV(self, filename, ROIName, ROIDictValue):
         #  Export all fields on the same csv file considering a region
-        system = qt.QLocale().system()
-        myDelimiter = chr(system.groupSeparator())
-        decimalPoint = chr(system.decimalPoint())
         file = open(filename, 'w')
-        cw = csv.writer(file, delimiter=myDelimiter)
+        cw = csv.writer(file, delimiter=',')
         cw.writerow([ROIName])
         cw.writerow([' '])
         for fieldName, shapeDict in sorted(ROIDictValue.iteritems()):
@@ -440,37 +441,36 @@ class MeshStatisticsLogic(ScriptedLoadableModuleLogic):
             self.writeFieldFile(cw, shapeDict)
             cw.writerow([' '])
         file.close()
-        if decimalPoint != '.':
-            self.replaceCharac(filename, '.', decimalPoint)
+        if self.decimalPoint != '.':
+            self.replaceCharac(filename, ',', ';') # change the Delimiter and put a semicolon instead of a comma
+            self.replaceCharac(filename, '.', self.decimalPoint) # change the decimal separator '.' for a comma
 
     def exportFieldAsCSV(self, filename, fieldName, shapeDict):
         #  Export fields on different csv files
-        system = qt.QLocale().system()
-        myDelimiter = chr(system.groupSeparator())
-        decimalPoint = chr(system.decimalPoint())
         file = open(filename, 'w')
-        cw = csv.writer(file, delimiter=myDelimiter)
+        cw = csv.writer(file, delimiter=',')
         cw.writerow([fieldName])
         cw.writerow(['Model','Min','Max','Mean','SD','Per5','Per15','Per25','Per50','Per75','Per85','Per95'])
         self.writeFieldFile(cw, shapeDict)
         file.close()
-        if decimalPoint != '.':
-            self.replaceCharac(filename, '.', decimalPoint)
+        if self.decimalPoint != '.':
+            self.replaceCharac(filename, ',', ';') # change the Delimiter and put a semicolon instead of a comma
+            self.replaceCharac(filename, '.', self.decimalPoint) # change the decimal separator '.' for a comma
+
     
     def exportPointValueAsCSV(self, filename, fieldArray, ROIArray):
         #Exportation of the value stored for each point:
-        system = qt.QLocale().system()
-        myDelimiter = chr(system.groupSeparator())
-        decimalPoint = chr(system.decimalPoint())
         file = open(filename, 'w')
-        cw = csv.writer(file, delimiter=myDelimiter)
+        cw = csv.writer(file, delimiter=',')
         bool, arrayToReturn = self.defineArray(fieldArray, ROIArray)
         if bool:
             for value in arrayToReturn:
                 cw.writerow([value])
             file.close()
-            if decimalPoint != '.':
-                self.replaceCharac(filename, '.', decimalPoint)
+            if self.decimalPoint != '.':
+                self.replaceCharac(filename, ',', ';') # change the Delimiter and put a semicolon instead of a comma
+                self.replaceCharac(filename, '.', self.decimalPoint) # change the decimal separator '.' for a comma
+
 
     def replaceCharac(self, filename, oldCharac, newCharac):
         #  Function to replace a charactere (oldCharac) in a file (filename) by a new one (newCharac)
@@ -596,6 +596,7 @@ class MeshStatisticsTest(ScriptedLoadableModuleTest):
         self.assertTrue(self.testPercentileFunction())
         self.delayDisplay(' Test storage of Values Function ')
         self.assertTrue(self.testStorageValue())
+        self.assertTrue(self.testOnMesh())
         self.delayDisplay(' Tests Passed! ')
     
     def defineArrays(self, logic, firstValue, lastValue):
@@ -687,4 +688,50 @@ class MeshStatisticsTest(ScriptedLoadableModuleTest):
             return False
         else:
             print '         Passed! '
+        return True
+
+    def testOnMesh(self):
+        import urllib
+        logic = MeshStatisticsLogic()
+        downloads = (('http://slicer.kitware.com/midas3/download?items=206062', 'model.vtk', slicer.util.loadModel),)
+        for url,name,loader in downloads:
+            filePath = slicer.app.temporaryPath + '/' + name
+            if not os.path.exists(filePath) or os.stat(filePath).st_size == 0:
+                print('Requesting download %s from %s...\n' % (name, url))
+                urllib.urlretrieve(url, filePath)
+            if loader:
+                print('Loading %s...\n' % (name,))
+                loader(filePath)
+        self.delayDisplay('Finished with download and loading\n')
+        
+        layoutManager = slicer.app.layoutManager()
+        threeDWidget = layoutManager.threeDWidget(0)
+        threeDView = threeDWidget.threeDView()
+        threeDView.resetFocalPoint()
+        
+        self.delayDisplay('Model loaded')
+        
+        model = slicer.util.getNode('model')
+        fieldArray = model.GetPolyData().GetPointData().GetArray('SignedPointToPointDistance')
+        ROIArray = model.GetPolyData().GetPointData().GetArray('output_V2_V8_ROI_2')
+        storage = logic. StatisticStore()
+        logic.computeAll(fieldArray, storage, ROIArray)
+        resultList = []
+        resultList.append(storage.min)
+        resultList.append(storage.max)
+        resultList.append(storage.mean)
+        resultList.append(storage.std)
+        resultList.append(storage.percentile5)
+        resultList.append(storage.percentile15)
+        resultList.append(storage.percentile25)
+        resultList.append(storage.percentile50)
+        resultList.append(storage.percentile75)
+        resultList.append(storage.percentile85)
+        resultList.append(storage.percentile95)
+        referenceList = [-3.182, 1.737, -1.397, 1.004, -2.668, -2.204, -1.913, -1.522, -1.182, -1.067, 1.314]
+        i = 0
+        for value in referenceList:
+            if value != resultList[i]:
+                return False
+            i += 1
         return True
