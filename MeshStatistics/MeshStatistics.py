@@ -11,7 +11,7 @@ class MeshStatistics(ScriptedLoadableModule):
     def __init__(self, parent):
         ScriptedLoadableModule.__init__(self, parent)
         parent.title = 'Mesh Statistics'
-        parent.categories = ['Shape Analysis']
+        parent.categories = ['Quantification']
         parent.dependencies = []
         parent.contributors = ['Lucie Macron']
         parent.helpText = """
