@@ -239,7 +239,6 @@ class MeshStatisticsLogic(ScriptedLoadableModuleLogic):
                 if PointDataOfReference.GetArray(i).GetNumberOfComponents() == 1:
                     fieldNameOfRefList.append(PointDataOfReference.GetArray(i).GetName())
                     fieldInCommon.append(PointDataOfReference.GetArray(i).GetName())
-            print fieldInCommon
 
             if modelList.__len__() > 1:
                 for model in modelList:
@@ -419,6 +418,9 @@ class MeshStatisticsLogic(ScriptedLoadableModuleLogic):
 
     def computeAll(self, fieldArray, fieldState, ROIArray):
         bool, array = self.defineArray(fieldArray, ROIArray)
+        if len(array) is 0:
+            slicer.util.errorDisplay("The ROI is empty")
+            return
         if bool:
             fieldState.min, fieldState.max = self.computeMinMax(array)
             fieldState.mean = self.computeMean(array)
@@ -482,6 +484,9 @@ class MeshStatisticsLogic(ScriptedLoadableModuleLogic):
         file = open(filename, 'w')
         cw = csv.writer(file, delimiter=',')
         bool, arrayToReturn = self.defineArray(fieldArray, ROIArray)
+        if len(arrayToReturn) is 0:
+            slicer.util.errorDisplay("The ROI is empty")
+            return
         if bool:
             for value in arrayToReturn:
                 cw.writerow([value])
