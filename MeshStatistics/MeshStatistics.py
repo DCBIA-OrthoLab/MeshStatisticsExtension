@@ -40,60 +40,59 @@ class MeshStatisticsWidget(ScriptedLoadableModuleWidget):
                                #                                             key = name of shapes
                                #                                             value = Statistics store()
 
-        self.logic = MeshStatisticsLogic()
+        self.logic = MeshStatisticsLogic(self)
+
+        # ---------------------------------------------------------------- #
+        # ---------------- Definition of the UI interface ---------------- #
+        # ---------------------------------------------------------------- #
+
+        # ------------ Loading of the .ui file ---------- #
+
+        loader = qt.QUiLoader()
+        moduleName = 'MeshStatistics'
+        scriptedModulesPath = eval('slicer.modules.%s.path' % moduleName.lower())
+        scriptedModulesPath = os.path.dirname(scriptedModulesPath)
+        path = os.path.join(scriptedModulesPath, 'Resources', 'UI', '%s.ui' %moduleName)
+
+        qfile = qt.QFile(path)
+        qfile.open(qt.QFile.ReadOnly)
+        widget = loader.load(qfile, self.parent)
+        self.layout = self.parent.layout()
+        self.widget = widget
+        self.layout.addWidget(widget)
+
         # ------------------------------------------------------------------------------------
         #                                    SHAPES INPUT
         # ------------------------------------------------------------------------------------
-        self.inputComboBox = slicer.qMRMLCheckableNodeComboBox()
-        self.inputComboBox.nodeTypes = ['vtkMRMLModelNode']
+        self.inputComboBox = self.logic.get("inputComboBox")
         self.inputComboBox.setMRMLScene(slicer.mrmlScene)
-        inputLayout = qt.QFormLayout()
-        inputLayout.addRow(' Models: ', self.inputComboBox)
-        self.layout.addLayout(inputLayout)
-
         self.inputComboBox.connect('checkedNodesChanged()', self.onInputComboBoxCheckedNodesChanged)
         # ------------------------------------------------------------------------------------
         #                                  ROI TABLE
         # ------------------------------------------------------------------------------------
-        self.ROIComboBox = ctk.ctkComboBox()
-        self.ROIComboBox.adjustSize()
-        self.ROICheckBox = qt.QCheckBox('All')
-        ROILayout = qt.QHBoxLayout()
-        ROILayout_0 = qt.QFormLayout()
-        ROILayout_0.addRow(' Region considered: ', self.ROIComboBox)
-        ROILayout.addLayout(ROILayout_0)
-        ROILayout.addWidget(self.ROICheckBox)
-
-        self.layout.addLayout(ROILayout)
+        self.ROIComboBox = self.logic.get("ROIComboBox")
+        self.ROICheckBox = self.logic.get("ROICheckBox")
         self.ROICheckBox.connect('stateChanged(int)', self.onROICheckBoxStateChanged)
         # ------------------------------------------------------------------------------------
         #                                  FIELD TABLE
         # ------------------------------------------------------------------------------------
-        self.tableField = qt.QTableWidget()
+        self.tableField = self.logic.get("tableField")
         self.tableField.setColumnCount(2)
         self.tableField.setMinimumHeight(250)
         self.tableField.setHorizontalHeaderLabels([' ', ' Field Name '])
         self.tableField.setColumnWidth(0, 20)
         self.tableField.setColumnWidth(1, 260)
         self.tableField.setSizePolicy(qt.QSizePolicy().Expanding, qt.QSizePolicy().Expanding)
-        
-        label = qt.QLabel(' Select a Field to compute statistics on:')
-        self.fieldLayout = qt.QVBoxLayout()
-        self.fieldLayout.addWidget(label)
-        self.fieldLayout.addWidget(self.tableField)
-        self.layout.addLayout(self.fieldLayout)
         # ------------------------------------------------------------------------------------
         #                                    RUN
         # ------------------------------------------------------------------------------------
-        self.runButton = qt.QPushButton(' Run ')
-        self.runButton.enabled = False
-        roiLayout = qt.QHBoxLayout()
-        roiLayout.addWidget(self.runButton)
-        self.layout.addLayout(roiLayout)
+        self.runButton = self.logic.get("runButton")
         self.runButton.connect('clicked()', self.onRunButton)
+
         # ------------------------------------------------------------------------------------
         #                          Statistics Table - Export
         # ------------------------------------------------------------------------------------
+        self.mainLayout = self.logic.get("mainLayout")
         self.tabROI = qt.QTabWidget()
         self.tabROI.setTabPosition(0)
         self.tabROI.adjustSize()
@@ -118,7 +117,7 @@ class MeshStatisticsWidget(ScriptedLoadableModuleWidget):
         self.exportLayout.addLayout(self.exportButtonsLayout)
         
         self.layout.addStretch(1)
-        self.logic.updateInterface(self.tableField, self.ROIComboBox, self.ROIList, self.modelList, self.layout)
+        self.logic.updateInterface(self.tableField, self.ROIComboBox, self.ROIList, self.modelList, self.mainLayout)
 
         # ------------------------------------------------------------------------------------
         #                                   OBSERVERS
@@ -131,7 +130,7 @@ class MeshStatisticsWidget(ScriptedLoadableModuleWidget):
     def onInputComboBoxCheckedNodesChanged(self):
         self.modelList = self.inputComboBox.checkedNodes()
         self.runButton.enabled = not self.inputComboBox.noneChecked()
-        self.logic.updateInterface(self.tableField, self.ROIComboBox, self.ROIList, self.modelList, self.layout)
+        self.logic.updateInterface(self.tableField, self.ROIComboBox, self.ROIList, self.modelList, self.mainLayout)
 
     def onROICheckBoxStateChanged(self, intCheckState):
         # intCheckState == 2 when checked
@@ -145,13 +144,13 @@ class MeshStatisticsWidget(ScriptedLoadableModuleWidget):
     def onRunButton(self):
         self.ROIDict.clear()
         if self.modelList:
-            self.logic.removeTable(self.layout, self.tabROI)
+            self.logic.removeTable(self.mainLayout, self.tabROI)
             self.exportButton.disconnect('clicked()', self.onExportButton)
-            self.layout.removeWidget(self.exportButton)
-            self.layout.removeItem(self.exportLayout)
+            self.mainLayout.removeWidget(self.exportButton)
+            self.mainLayout.removeItem(self.exportLayout)
         self.logic.displayStatistics(self.ROICheckBox.isChecked(), self.ROIList, self.ROIDict, self.ROIComboBox,
-                                     self.tableField, self.modelList, self.tabROI, self.layout)
-        self.layout.addLayout(self.exportLayout)
+                                     self.tableField, self.modelList, self.tabROI, self.mainLayout)
+        self.mainLayout.addLayout(self.exportLayout)
         self.exportButton.connect('clicked()', self.onExportButton)
 
 
@@ -176,12 +175,31 @@ class MeshStatisticsLogic(ScriptedLoadableModuleLogic):
             self.percentile85 = 0
             self.percentile95 = 0
 
-    def __init__(self):
+    def __init__(self, interface=None):
+        self.interface = interface
         self.numberOfDecimals = 3
 	system = qt.QLocale().system()
         self.decimalPoint = chr(system.decimalPoint())
 
+    # -------------------------------------------------------- #
+    # ----------- Connection of the User Interface ----------- #
+    # -------------------------------------------------------- #
 
+    # This function will look for an object with the given name in the UI and return it.
+    def get(self, objectName):
+        return self.findWidget(self.interface.widget, objectName)
+
+    # This function will recursively look into all the object of the UI and compare it to
+    # the given name, if it never find it will return "None"
+    def findWidget(self, widget, objectName):
+        if widget.objectName == objectName:
+            return widget
+        else:
+            for w in widget.children():
+                resulting_widget = self.findWidget(w, objectName)
+                if resulting_widget:
+                    return resulting_widget
+            return None
 
     def updateInterface(self, tableField, ROIComboBox, ROIList, modelList, layout):
         tableField.clearContents()
@@ -400,6 +418,9 @@ class MeshStatisticsLogic(ScriptedLoadableModuleLogic):
 
     def computeAll(self, fieldArray, fieldState, ROIArray):
         bool, array = self.defineArray(fieldArray, ROIArray)
+        if len(array) is 0:
+            slicer.util.errorDisplay("The ROI is empty")
+            return
         if bool:
             fieldState.min, fieldState.max = self.computeMinMax(array)
             fieldState.mean = self.computeMean(array)
@@ -463,6 +484,9 @@ class MeshStatisticsLogic(ScriptedLoadableModuleLogic):
         file = open(filename, 'w')
         cw = csv.writer(file, delimiter=',')
         bool, arrayToReturn = self.defineArray(fieldArray, ROIArray)
+        if len(arrayToReturn) is 0:
+            slicer.util.errorDisplay("The ROI is empty")
+            return
         if bool:
             for value in arrayToReturn:
                 cw.writerow([value])
