@@ -29,6 +29,7 @@ class MeshStatistics(ScriptedLoadableModule):
 
 class MeshStatisticsWidget(ScriptedLoadableModuleWidget):
     def setup(self):
+        print "-------Mesh Statistic Widget Setup-------"
         ScriptedLoadableModuleWidget.setup(self)
         # -------------------------------------------------------------------------------------
         self.modelList = list()
