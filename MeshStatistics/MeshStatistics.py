@@ -414,7 +414,7 @@ class MeshStatisticsLogic(ScriptedLoadableModuleLogic):
         #  The lowest value is taken
         valueArray = numpy.sort(valueArray)
         index = (valueArray.size * percent) - 1
-        ceilIndex = math.ceil(index)
+        ceilIndex = int(math.ceil(index))
         return round(valueArray[ceilIndex], self.numberOfDecimals)
 
     def computeAll(self, fieldArray, fieldState, ROIArray):
