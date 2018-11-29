@@ -3,6 +3,8 @@ import math
 import re
 import csv
 import os
+import sys
+import logging
 from __main__ import vtk, qt, ctk, slicer
 from random import randint
 from slicer.ScriptedLoadableModule import *
@@ -29,8 +31,8 @@ class MeshStatistics(ScriptedLoadableModule):
 
 class MeshStatisticsWidget(ScriptedLoadableModuleWidget):
     def setup(self):
-        print "-------Mesh Statistic Widget Setup-------"
         ScriptedLoadableModuleWidget.setup(self)
+        print "-------Mesh Statistic Widget Setup-------"
         # -------------------------------------------------------------------------------------
         self.modelList = list()
         self.fieldList = list()
@@ -49,18 +51,12 @@ class MeshStatisticsWidget(ScriptedLoadableModuleWidget):
 
         # ------------ Loading of the .ui file ---------- #
 
-        loader = qt.QUiLoader()
-        moduleName = 'MeshStatistics'
-        scriptedModulesPath = eval('slicer.modules.%s.path' % moduleName.lower())
-        scriptedModulesPath = os.path.dirname(scriptedModulesPath)
-        path = os.path.join(scriptedModulesPath, 'Resources', 'UI', '%s.ui' %moduleName)
+        modulePath = os.path.dirname(slicer.util.modulePath(self.moduleName))
+        path = os.path.join(modulePath, 'Resources', 'UI', '%s.ui' % self.moduleName)
 
-        qfile = qt.QFile(path)
-        qfile.open(qt.QFile.ReadOnly)
-        widget = loader.load(qfile, self.parent)
         self.layout = self.parent.layout()
-        self.widget = widget
-        self.layout.addWidget(widget)
+        self.widget = slicer.util.loadUI(path)
+        self.layout.addWidget(self.widget)
 
         # ------------------------------------------------------------------------------------
         #                                    SHAPES INPUT
@@ -123,10 +119,23 @@ class MeshStatisticsWidget(ScriptedLoadableModuleWidget):
         # ------------------------------------------------------------------------------------
         #                                   OBSERVERS
         # ------------------------------------------------------------------------------------
-        def onCloseScene(obj, event):
-            # initialize Parameters
-            globals()['MeshStatistics'] = slicer.util.reloadScriptedModule('MeshStatistics')
-        slicer.mrmlScene.AddObserver(slicer.mrmlScene.EndCloseEvent, onCloseScene)
+
+        slicer.mrmlScene.AddObserver(slicer.mrmlScene.EndCloseEvent, self.onCloseScene)
+
+    def onCloseScene(self, obj, event):
+        # initialize Parameters
+        self.modelList = list()
+        self.fieldList = list()
+        self.ROIList = list()
+        self.ROIDict = dict()
+        self.ROIComboBox.clear()
+        self.tableField.clearContents()
+        self.tableField.setRowCount(0)
+        self.tableField.setRowCount(1)
+        self.tableField.setSpan(0,0,1,2)
+        label = qt.QLabel(' Please select at least a model! ')
+        label.setStyleSheet(' qproperty-alignment: AlignCenter; }')
+        self.tableField.setCellWidget(0, 0, label)
 
     def onInputComboBoxCheckedNodesChanged(self):
         self.modelList = self.inputComboBox.checkedNodes()
@@ -179,7 +188,7 @@ class MeshStatisticsLogic(ScriptedLoadableModuleLogic):
     def __init__(self, interface=None):
         self.interface = interface
         self.numberOfDecimals = 3
-	system = qt.QLocale().system()
+        system = qt.QLocale().system()
         self.decimalPoint = chr(system.decimalPoint())
 
     # -------------------------------------------------------- #
@@ -188,19 +197,7 @@ class MeshStatisticsLogic(ScriptedLoadableModuleLogic):
 
     # This function will look for an object with the given name in the UI and return it.
     def get(self, objectName):
-        return self.findWidget(self.interface.widget, objectName)
-
-    # This function will recursively look into all the object of the UI and compare it to
-    # the given name, if it never find it will return "None"
-    def findWidget(self, widget, objectName):
-        if widget.objectName == objectName:
-            return widget
-        else:
-            for w in widget.children():
-                resulting_widget = self.findWidget(w, objectName)
-                if resulting_widget:
-                    return resulting_widget
-            return None
+        return slicer.util.findChildren(widget=self.interface.widget, name=objectName)[0]
 
     def updateInterface(self, tableField, ROIComboBox, ROIList, modelList, layout):
         tableField.clearContents()
@@ -217,7 +214,7 @@ class MeshStatisticsLogic(ScriptedLoadableModuleLogic):
             tableField.setRowCount(1)
             tableField.setSpan(0,0,1,2)
             label = qt.QLabel(' Please select at least a model! ')
-            label.setStyleSheet(' qproperty-alignment: AlignCenter; }')
+            label.setStyleSheet(' QLabel{ qproperty-alignment: AlignCenter; }')
             tableField.setCellWidget(tableFieldNumRows, 0, label)
 
         if modelList:
@@ -610,19 +607,120 @@ class MeshStatisticsLogic(ScriptedLoadableModuleLogic):
 
 class MeshStatisticsTest(ScriptedLoadableModuleTest):
     def setUp(self):
+        # reset the state - clear scene
+        self.widget = slicer.modules.MeshStatisticsWidget
         slicer.mrmlScene.Clear(0)
 
     def runTest(self):
+        # run all tests needed
+        self.delayDisplay("Clear the scene")
         self.setUp()
-        self.delayDisplay(' Starting tests ')
-        self.delayDisplay(' Test Min Max Mean Functions ')
+        self.delayDisplay("Download and load datas")
+        self.downloaddata()
+        self.delayDisplay("Starting the tests")
+
+        self.delayDisplay("Test1: Test Min Max Mean Functions")
         self.assertTrue(self.testMinMaxMeanFunctions())
-        self.delayDisplay(' Test Percentile Function ')
+
+        self.delayDisplay("Test2: Test Percentile Function")
         self.assertTrue(self.testPercentileFunction())
-        self.delayDisplay(' Test storage of Values Function ')
+
+        self.delayDisplay("Test3: Test storage of Values Function")
         self.assertTrue(self.testStorageValue())
-        self.assertTrue(self.testOnMesh())
-        self.delayDisplay(' Tests Passed! ')
+
+        self.delayDisplay("Test4: Test on entire models")
+        self.delayDisplay("Test4-1: Test on T1toT2")
+        self.assertTrue(self.testOnMesh(slicer.mrmlScene.GetNodesByName("T1toT2").GetItemAsObject(0),
+                                        0, ["AbsolutePointToPointDistance",
+                                            "PointToPointAlongZ",
+                                            "SignedMagNormDirDistance",""],
+                                        [[0.039, 5.766, 1.152, 0.821, 0.258, 0.459, 0.627, 0.958, 1.5, 1.727, 2.59],
+                                         [-3.631, 1.187, -0.478, 0.787, -1.912, -1.279, -0.854, -0.336, 0.03, 0.218, 0.57],
+                                         [-5.62, 0.947, -0.225, 0.786, -1.616, -0.542, -0.296, -0.037, 0.099, 0.238, 0.485],
+                                         []],
+                                        "Test4-1"))
+
+        self.delayDisplay("Test4-2: Test on T1toT3")
+        self.assertTrue(self.testOnMesh(slicer.mrmlScene.GetNodesByName("T1toT3").GetItemAsObject(0),
+                                        0, ["AbsoluteMagNormDirDistance",
+                                            "AbsolutePointToPointDistance",
+                                            "PointToPointAlongY",
+                                            "SignedPointToPointDistance",""],
+                                        [[0.001, 6.14, 0.54, 0.779, 0.018, 0.059, 0.11, 0.264, 0.558, 0.904, 2.328],
+                                         [0.016, 6.45, 1.696, 0.805, 0.347, 0.736, 1.16, 1.797, 2.213, 2.336, 2.828],
+                                         [-4.919, 0.897, -0.15, 0.704, -1.196, -0.719, -0.532, -0.026, 0.356, 0.472, 0.613],
+                                         [-6.45, 3.217, -0.218, 1.865, -2.78, -2.239, -1.943, -0.43, 1.696, 2.046, 2.301],
+                                         []],
+                                        "Test4-2"))
+        self.delayDisplay("Test4-3: Test on T2toT3")
+        self.assertTrue(self.testOnMesh(slicer.mrmlScene.GetNodesByName("T2toT3").GetItemAsObject(0),
+                                        0, ["PointToPointAlongX",
+                                            "PointToPointAlongY",
+                                            "PointToPointAlongZ",""],
+                                        [[-2.542, 2.153, -0.233, 0.933, -1.802, -1.343, -0.929, -0.069, 0.386, 0.647, 1.273],
+                                         [-2.63, 2.266, 0.159, 0.923, -1.38, -0.904, -0.513, 0.309, 0.912, 1.074, 1.394],
+                                         [-3.431, 1.172, -0.956, 0.924, -2.388, -2.04, -1.665, -0.916, -0.28, 0.048, 0.626],
+                                         []],
+                                        "Test4-3"))
+
+        self.delayDisplay("Test5: Test on a ROI")
+        self.delayDisplay("Test5-1: Test on T1toT2")
+        self.assertTrue(self.testOnMesh(slicer.mrmlScene.GetNodesByName("T1toT2").GetItemAsObject(0),
+                                        1, ["AbsolutePointToPointDistance",
+                                            "PointToPointAlongZ",
+                                            "SignedMagNormDirDistance",""],
+                                        [[0.214, 4.152, 1.56, 0.671, 0.389, 0.895, 1.131, 1.584, 1.919, 2.063, 2.498],
+                                         [-3.025, 1.159, -0.639, 0.986, -1.955, -1.687, -1.584, -0.294, 0.135, 0.396, 0.716],
+                                         [-3.666, 0.947, -0.24, 0.807, -2.302, -0.667, -0.496, -0.076, 0.247, 0.377, 0.754],
+                                         []],
+                                        "Test5-1"))
+
+        self.delayDisplay("Test5-2: Test on T1toT3")
+        self.assertTrue(self.testOnMesh(slicer.mrmlScene.GetNodesByName("T1toT3").GetItemAsObject(0),
+                                        1, ["AbsoluteMagNormDirDistance",
+                                            "AbsolutePointToPointDistance",
+                                            "PointToPointAlongY",
+                                            "SignedPointToPointDistance",""],
+                                        [[0.001, 4.031, 0.887, 0.98, 0.057, 0.144, 0.232, 0.519, 0.94, 2.255, 3.202],
+                                         [1.529, 4.344, 2.293, 0.553, 1.608, 1.765, 1.879, 2.175, 2.544, 2.875, 3.412],
+                                         [-3.537, 0.806, -0.515, 0.914, -2.439, -1.552, -0.894, -0.256, 0.14, 0.288, 0.572],
+                                         [-4.344, 2.74, -1.265, 1.991, -3.412, -2.875, -2.489, -2.051, 1.583, 1.749, 2.363],
+                                         []],
+                                        "Test5-2"))
+        self.delayDisplay("Test5-3: Test on T2toT3")
+        self.assertTrue(self.testOnMesh(slicer.mrmlScene.GetNodesByName("T2toT3").GetItemAsObject(0),
+                                        1, ["PointToPointAlongX",
+                                            "PointToPointAlongY",
+                                            "PointToPointAlongZ",""],
+                                        [[-2.542, 2.153, 0.203, 1.306, -2.003, -1.563, -0.975, 0.473, 1.268, 1.698, 1.999],
+                                         [-2.593, 1.354, -0.315, 1.02, -2.201, -1.313, -1.138, -0.319, 0.651, 0.873, 0.995],
+                                         [-3.431, 0.582, -1.32, 1.04, -3.036, -2.22, -2.097, -1.62, -0.199, -0.1, 0.03],
+                                         []],
+                                        "Test5-3"))
+
+        self.delayDisplay("All test passed!")
+
+    def downloaddata(self):
+        import urllib
+        downloads = (
+            ('http://slicer.kitware.com/midas3/download?items=240003', 'T1toT2.vtk', slicer.util.loadModel),
+            ('http://slicer.kitware.com/midas3/download?items=240002', 'T1toT3.vtk', slicer.util.loadModel),
+            ('http://slicer.kitware.com/midas3/download?items=240001', 'T2toT3.vtk', slicer.util.loadModel),
+        )
+        for url, name, loader in downloads:
+            filePath = slicer.app.temporaryPath + '/' + name
+            print filePath
+            if not os.path.exists(filePath) or os.stat(filePath).st_size == 0:
+                logging.info('Requesting download %s from %s...\n' % (name, url))
+                urllib.urlretrieve(url, filePath)
+            if loader:
+                logging.info('Loading %s...' % (name,))
+                loader(filePath)
+
+        layoutManager = slicer.app.layoutManager()
+        threeDWidget = layoutManager.threeDWidget(0)
+        threeDView = threeDWidget.threeDView()
+        threeDView.resetFocalPoint()
     
     def defineArrays(self, logic, firstValue, lastValue):
         arrayValue = vtk.vtkDoubleArray()
@@ -715,48 +813,29 @@ class MeshStatisticsTest(ScriptedLoadableModuleTest):
             print '         Passed! '
         return True
 
-    def testOnMesh(self):
-        import urllib
-        logic = MeshStatisticsLogic()
-        downloads = (('http://slicer.kitware.com/midas3/download?items=206062', 'model.vtk', slicer.util.loadModel),)
-        for url,name,loader in downloads:
-            filePath = slicer.app.temporaryPath + '/' + name
-            if not os.path.exists(filePath) or os.stat(filePath).st_size == 0:
-                print('Requesting download %s from %s...\n' % (name, url))
-                urllib.urlretrieve(url, filePath)
-            if loader:
-                print('Loading %s...\n' % (name,))
-                loader(filePath)
-        self.delayDisplay('Finished with download and loading\n')
-        
-        layoutManager = slicer.app.layoutManager()
-        threeDWidget = layoutManager.threeDWidget(0)
-        threeDView = threeDWidget.threeDView()
-        threeDView.resetFocalPoint()
-        
-        self.delayDisplay('Model loaded')
-        
-        model = slicer.util.getNode('model')
-        fieldArray = model.GetPolyData().GetPointData().GetArray('SignedPointToPointDistance')
-        ROIArray = model.GetPolyData().GetPointData().GetArray('output_V2_V8_ROI_2')
-        storage = logic. StatisticStore()
-        logic.computeAll(fieldArray, storage, ROIArray)
-        resultList = []
-        resultList.append(storage.min)
-        resultList.append(storage.max)
-        resultList.append(storage.mean)
-        resultList.append(storage.std)
-        resultList.append(storage.percentile5)
-        resultList.append(storage.percentile15)
-        resultList.append(storage.percentile25)
-        resultList.append(storage.percentile50)
-        resultList.append(storage.percentile75)
-        resultList.append(storage.percentile85)
-        resultList.append(storage.percentile95)
-        referenceList = [-3.182, 1.737, -1.397, 1.004, -2.668, -2.204, -1.913, -1.522, -1.182, -1.067, 1.314]
-        i = 0
-        for value in referenceList:
-            if value != resultList[i]:
-                return False
-            i += 1
+    def testOnMesh(self, model, indexOfTheRegionConsidered, fieldToCheck, measurements, NameOftheTest):
+        self.widget.inputComboBox.setCheckState(model, 2)
+        self.widget.ROIComboBox.setCurrentIndex(indexOfTheRegionConsidered)
+        for i in range(0, 7):
+            widget = self.widget.tableField.cellWidget(i, 0)
+            widget.setChecked(True)
+            self.widget.runButton.click()
+
+        for ROIName, ROIDictValue in self.widget.ROIDict.iteritems():
+            i = 0
+            for fieldName, modelDict in sorted(ROIDictValue.iteritems()):
+                if fieldName == fieldToCheck[i]:
+                    self.delayDisplay(NameOftheTest + "-" + str(i+1) + ": test on " + fieldName)
+                    for a in modelDict.iteritems():
+                        if measurements[i] != [a[1].min, a[1].max, a[1].mean, a[1].std, a[1].percentile5,
+                           a[1].percentile15, a[1].percentile25, a[1].percentile50, a[1].percentile75,
+                           a[1].percentile85, a[1].percentile95]:
+                            print measurements[i]
+                            print [a[1].min, a[1].max, a[1].mean, a[1].std, a[1].percentile5,
+                           a[1].percentile15, a[1].percentile25, a[1].percentile50, a[1].percentile75,
+                           a[1].percentile85, a[1].percentile95]
+                            return False
+                    i = i + 1
+
+        self.widget.inputComboBox.setCheckState(model, 0)
         return True
