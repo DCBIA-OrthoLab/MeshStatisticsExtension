@@ -32,7 +32,7 @@ class MeshStatistics(ScriptedLoadableModule):
 class MeshStatisticsWidget(ScriptedLoadableModuleWidget):
     def setup(self):
         ScriptedLoadableModuleWidget.setup(self)
-        print "-------Mesh Statistic Widget Setup-------"
+        print("-------Mesh Statistic Widget Setup-------")
         # -------------------------------------------------------------------------------------
         self.modelList = list()
         self.fieldList = list()
@@ -289,7 +289,7 @@ class MeshStatisticsLogic(ScriptedLoadableModuleLogic):
         statTable.setColumnCount(12)
         statTable.setHorizontalHeaderLabels(['Model','Min','Max','Mean','SD','Per5','Per15','Per25','Per50','Per75','Per85','Per95'])
         # Add Values:
-        for key, value in fieldDictionaryValue.iteritems():
+        for key, value in fieldDictionaryValue.items():
             statTable.setCellWidget(i, 0, qt.QLabel(key))
             statTable.setCellWidget(i, 1, qt.QLabel(value.min))
             statTable.cellWidget(i,1).setStyleSheet(' QLabel{ qproperty-alignment: AlignCenter;}')
@@ -320,11 +320,11 @@ class MeshStatisticsLogic(ScriptedLoadableModuleLogic):
 
     def updateTable(self, ROIDict, tabROI, layout):
         tabROI.setMinimumWidth(100*ROIDict.__len__())
-        for ROIName, FieldDict in ROIDict.iteritems():
+        for ROIName, FieldDict in ROIDict.items():
             tab = qt.QTabWidget()
             tab.adjustSize()
             tab.setTabPosition(1)
-            for fieldName, fieldDictValue in FieldDict.iteritems():
+            for fieldName, fieldDictValue in FieldDict.items():
                 statisticsTable = self.defineStatisticsTable(fieldDictValue)
                 tab.addTab(statisticsTable, fieldName)
             tabROI.addTab(tab, ROIName)
@@ -333,26 +333,26 @@ class MeshStatisticsLogic(ScriptedLoadableModuleLogic):
     def displayStatistics(self, ROICheckBoxState, ROIList, ROIDict, ROIComboBox, tableField, modelList, tabROI, layout):
         if ROICheckBoxState:
             for ROIName in ROIList:
-                if not ROIDict.has_key(ROIName):
+                if not ROIName in ROIDict:
                     ROIDict[ROIName] = dict()
         else:
-            ROIToCompute = ROIComboBox.currentText.encode('utf-8')
-            if not ROIDict.has_key(ROIToCompute):
+            ROIToCompute = ROIComboBox.currentText
+            if not ROIToCompute in ROIDict:
                 ROIDict[ROIToCompute] = dict()
                 
         numberOfRowField = tableField.rowCount
-        for ROIName, ROIFieldDict in ROIDict.iteritems():
+        for ROIName, ROIFieldDict in ROIDict.items():
             for i in range(0, numberOfRowField):
                 widget = tableField.cellWidget(i, 0)
                 if widget and widget.isChecked():
-                    ROIFieldDict[tableField.cellWidget(i, 1).text.encode('utf-8')] = dict()
-            for fieldName, fieldValue in ROIFieldDict.iteritems():
+                    ROIFieldDict[tableField.cellWidget(i, 1).text] = dict()
+            for fieldName, fieldValue in ROIFieldDict.items():
                 for shape in modelList:
                     activePointData = shape.GetModelDisplayNode().GetInputPolyData().GetPointData()
                     fieldArray = activePointData.GetArray(fieldName)
                     fieldValue[shape.GetName()] = self.StatisticStore()
                     if ROIName == 'Entire Model':
-                        self.computeAll(fieldArray, fieldValue[shape.GetName()], 'None')
+                        self.computeAll(fieldArray, fieldValue[shape.GetName()], None)
                     else:
                         ROIArray = activePointData.GetArray(ROIName)
                         self.computeAll(fieldArray, fieldValue[shape.GetName()], ROIArray)
@@ -377,13 +377,13 @@ class MeshStatisticsLogic(ScriptedLoadableModuleLogic):
         #  Return a numpy.array to be able to use numpy's method to compute statistics
         valueList = list()
         bool = True
-        if ROIArray == 'None':
+        if ROIArray == None:
             for i in range(0, fieldArray.GetNumberOfTuples()):
                 valueList.append(fieldArray.GetValue(i))
             valueArray = numpy.array(valueList)
         else:
             if ROIArray.GetNumberOfTuples() != fieldArray.GetNumberOfTuples():
-                print 'Size of ROIArray and fieldArray are not the same!!!'
+                print('Size of ROIArray and fieldArray are not the same!!!')
                 bool = False
             else:
                 for i in range(0, fieldArray.GetNumberOfTuples()):
@@ -434,7 +434,7 @@ class MeshStatisticsLogic(ScriptedLoadableModuleLogic):
     def writeFieldFile(self, fileWriter, modelDict):
         #  Function defined to export all statistics of a field concidering a file writer (fileWriter)
         #  and a dictionary of models (modelDict) where statistics are stored
-        for shapeName, shapeStats in modelDict.iteritems():
+        for shapeName, shapeStats in modelDict.items():
             fileWriter.writerow([shapeName,
                                  shapeStats.min,
                                  shapeStats.max,
@@ -454,7 +454,7 @@ class MeshStatisticsLogic(ScriptedLoadableModuleLogic):
         cw = csv.writer(file, delimiter=',')
         cw.writerow([ROIName])
         cw.writerow([' '])
-        for fieldName, shapeDict in sorted(ROIDictValue.iteritems()):
+        for fieldName, shapeDict in sorted(ROIDictValue.items()):
             cw.writerow([fieldName])
             cw.writerow(['Model','Min','Max','Mean','SD','Per5','Per15','Per25','Per50','Per75','Per85','Per95'])
             self.writeFieldFile(cw, shapeDict)
@@ -512,11 +512,11 @@ class MeshStatisticsLogic(ScriptedLoadableModuleLogic):
         messageBox.setIcon(messageBox.Warning)
 
         if exportCheckBoxState:  # if exportation in different files
-            for ROIName, ROIDictValue in sorted(ROIDict.iteritems()):
+            for ROIName, ROIDictValue in sorted(ROIDict.items()):
                 directoryFolder = directory + '/' + ROIName
                 if not os.path.exists(directoryFolder):
                     os.mkdir(directoryFolder)
-                for fieldName, modelDict in sorted(ROIDictValue.iteritems()):
+                for fieldName, modelDict in sorted(ROIDictValue.items()):
                     filename = directoryFolder + '/' + fieldName + '.csv'
                     if os.path.exists(filename):
                         messageBox.setText('On folder ' + ROIName + ', file ' + fieldName + '.csv already exists.')
@@ -528,18 +528,18 @@ class MeshStatisticsLogic(ScriptedLoadableModuleLogic):
                         if choice == messageBox.Yes:
                             self.exportFieldAsCSV(filename, fieldName, modelDict)
                         if choice == messageBox.YesToAll:
-                            for ROIName, ROIDictValue in sorted(ROIDict.iteritems()):
+                            for ROIName, ROIDictValue in sorted(ROIDict.items()):
                                 directoryFolder = directory + '/' + ROIName
                                 if not os.path.exists(directoryFolder):
                                     os.mkdir(directoryFolder)
-                                for fieldName, shapeDict in sorted(ROIDictValue.iteritems()):
+                                for fieldName, shapeDict in sorted(ROIDictValue.items()):
                                     filename = directoryFolder + '/' + fieldName + '.csv'
                                     self.exportFieldAsCSV(filename, fieldName, shapeDict)
                             return True
                     else:
                         self.exportFieldAsCSV(filename, fieldName, modelDict)
         else:
-            for ROIName, ROIDictValue in sorted(ROIDict.iteritems()):
+            for ROIName, ROIDictValue in sorted(ROIDict.items()):
                 filename = directory + '/' + ROIName + '.csv'
                 if os.path.exists(filename):
                     messageBox.setText('File ' + ROIName + '.csv already exists in this folder.')
@@ -551,7 +551,7 @@ class MeshStatisticsLogic(ScriptedLoadableModuleLogic):
                     if choice == messageBox.Yes:
                         self.exportAllAsCSV(filename, ROIName, ROIDictValue)
                     if choice == messageBox.YesToAll:
-                        for ROIName, ROIDictValue in sorted(ROIDict.iteritems()):
+                        for ROIName, ROIDictValue in sorted(ROIDict.items()):
                             filename = directory + '/' + ROIName + '.csv'
                             self.exportAllAsCSV(filename, ROIName, ROIDictValue)
                         return True
@@ -566,16 +566,16 @@ class MeshStatisticsLogic(ScriptedLoadableModuleLogic):
         messageBox.setIcon(messageBox.Warning)
         if not os.path.exists(directoryPointValuesFolder):
             os.mkdir(directoryPointValuesFolder)
-        for ROIName, ROIDictValue in sorted(ROIDict.iteritems()):
+        for ROIName, ROIDictValue in sorted(ROIDict.items()):
             if ROIName != 'Entire Model':
                 directoryFolder = directoryPointValuesFolder + '/' + ROIName
                 if not os.path.exists(directoryFolder):
                     os.mkdir(directoryFolder)
-                for fieldName, modelDict in sorted(ROIDictValue.iteritems()):
+                for fieldName, modelDict in sorted(ROIDictValue.items()):
                     directoryFilename = directoryFolder + '/' + fieldName
                     if not os.path.exists(directoryFilename):
                         os.mkdir(directoryFilename)
-                    for modelName in modelDict.iterkeys():
+                    for modelName in modelDict.keys():
                         filename = directoryFilename + '/' + modelName + '.csv'
                         if os.path.exists(filename):
                             messageBox.setText('File ' + fieldName + '.csv already exist for the model ' + modelName)
@@ -590,8 +590,8 @@ class MeshStatisticsLogic(ScriptedLoadableModuleLogic):
                                 ROIArray = pointData.GetArray(ROIName)
                                 self.exportPointValueAsCSV(filename, fieldArray, ROIArray)
                             if choice == messageBox.YesToAll:
-                                for fieldName, modelDict in sorted(ROIDictValue.iteritems()):
-                                    for modelName in modelDict.iterkeys():
+                                for fieldName, modelDict in sorted(ROIDictValue.items()):
+                                    for modelName in modelDict.keys():
                                         filename = directoryFilename + '/' + modelName + '.csv'
                                         pointData = slicer.util.getNode(modelName).GetModelDisplayNode().GetInputPolyData().GetPointData()
                                         fieldArray = pointData.GetArray(fieldName)
@@ -701,7 +701,7 @@ class MeshStatisticsTest(ScriptedLoadableModuleTest):
         self.delayDisplay("All test passed!")
 
     def downloaddata(self):
-        import urllib
+        import urllib.request
         downloads = (
             ('http://slicer.kitware.com/midas3/download?items=240003', 'T1toT2.vtk', slicer.util.loadModel),
             ('http://slicer.kitware.com/midas3/download?items=240002', 'T1toT3.vtk', slicer.util.loadModel),
@@ -709,10 +709,10 @@ class MeshStatisticsTest(ScriptedLoadableModuleTest):
         )
         for url, name, loader in downloads:
             filePath = slicer.app.temporaryPath + '/' + name
-            print filePath
+            print(filePath)
             if not os.path.exists(filePath) or os.stat(filePath).st_size == 0:
                 logging.info('Requesting download %s from %s...\n' % (name, url))
-                urllib.urlretrieve(url, filePath)
+                urllib.request.urlretrieve(url, filePath)
             if loader:
                 logging.info('Loading %s...' % (name,))
                 loader(filePath)
@@ -735,7 +735,7 @@ class MeshStatisticsTest(ScriptedLoadableModuleTest):
 
     def testStorageValue(self):
         logic = MeshStatisticsLogic()
-        print ' Test storage of Values: '
+        print(' Test storage of Values: ')
         arrayValue = vtk.vtkDoubleArray()
         arrayMask = vtk.vtkDoubleArray()
         for i in range(0, 1000, 2):
@@ -757,32 +757,32 @@ class MeshStatisticsTest(ScriptedLoadableModuleTest):
         a = 0
         for i in listOfRandomNumber:
             if arrayValue.GetValue(i) != array[a]:
-                print '        Failed', a, array[a], i, arrayValue.GetValue(i)
+                print('        Failed', a, array[a], i, arrayValue.GetValue(i))
                 return False
             a += 1
-        print '         Passed'
+        print('         Passed')
         return True
             
     def testMinMaxMeanFunctions(self):
         logic = MeshStatisticsLogic()
-        print 'Test min, max, mean, and std: '
+        print('Test min, max, mean, and std: ')
         array = self.defineArrays(logic, 1, 1001)
         min, max = logic.computeMinMax(array)
         mean = logic.computeMean(array)
         std = logic.computeStandardDeviation(array)
-        print 'min=', min, 'max=', max, 'mean=', mean, 'std=', std
+        print('min=', min, 'max=', max, 'mean=', mean, 'std=', std)
         if min != 1.0 or max != 1000.0 or mean != 500.5 or std != 288.675:
-            print '      Failed! '
+            print('      Failed! ')
             return False
         else:
-            print '      Passed! '
+            print('      Passed! ')
         return True
 
     def testPercentileFunction(self):
         logic = MeshStatisticsLogic()
         # pair number of value:
-        print ' TEST Percentile '
-        print '     TEST Pair number of values '
+        print(' TEST Percentile ')
+        print('     TEST Pair number of values ')
         array = self.defineArrays(logic, 1, 1001)
         percentile5 = logic.computePercentile(array, 0.05)
         percentile15 = logic.computePercentile(array, 0.15)
@@ -792,12 +792,12 @@ class MeshStatisticsTest(ScriptedLoadableModuleTest):
         percentile85 = logic.computePercentile(array, 0.85)
         percentile95 = logic.computePercentile(array, 0.95)
         if percentile5 != 50 or percentile15 != 150 or percentile25 != 250 or percentile50 != 500 or percentile75 != 750 or percentile85 != 850 or percentile95 != 950:
-            print '         Failed ! '
+            print('         Failed ! ')
             return False
         else:
-            print '         Passed'
+            print('         Passed')
         # odd number of value:
-        print '     TEST Odd number of values '
+        print('     TEST Odd number of values ')
         array = self.defineArrays(logic, 1, 1000)
         percentile5 = logic.computePercentile(array, 0.05)
         percentile15 = logic.computePercentile(array, 0.15)
@@ -807,10 +807,10 @@ class MeshStatisticsTest(ScriptedLoadableModuleTest):
         percentile85 = logic.computePercentile(array, 0.85)
         percentile95 = logic.computePercentile(array, 0.95)
         if percentile5 != 50 or percentile15 != 150 or percentile25 != 250 or percentile50 != 500 or percentile75 != 750 or percentile85 != 850 or percentile95 != 950:
-            print '         Failed ! '
+            print('         Failed ! ')
             return False
         else:
-            print '         Passed! '
+            print('         Passed! ')
         return True
 
     def testOnMesh(self, model, indexOfTheRegionConsidered, fieldToCheck, measurements, NameOftheTest):
@@ -821,19 +821,19 @@ class MeshStatisticsTest(ScriptedLoadableModuleTest):
             widget.setChecked(True)
             self.widget.runButton.click()
 
-        for ROIName, ROIDictValue in self.widget.ROIDict.iteritems():
+        for ROIName, ROIDictValue in self.widget.ROIDict.items():
             i = 0
-            for fieldName, modelDict in sorted(ROIDictValue.iteritems()):
+            for fieldName, modelDict in sorted(ROIDictValue.items()):
                 if fieldName == fieldToCheck[i]:
                     self.delayDisplay(NameOftheTest + "-" + str(i+1) + ": test on " + fieldName)
-                    for a in modelDict.iteritems():
+                    for a in modelDict.items():
                         if measurements[i] != [a[1].min, a[1].max, a[1].mean, a[1].std, a[1].percentile5,
                            a[1].percentile15, a[1].percentile25, a[1].percentile50, a[1].percentile75,
                            a[1].percentile85, a[1].percentile95]:
-                            print measurements[i]
-                            print [a[1].min, a[1].max, a[1].mean, a[1].std, a[1].percentile5,
+                            print(measurements[i])
+                            print([a[1].min, a[1].max, a[1].mean, a[1].std, a[1].percentile5,
                            a[1].percentile15, a[1].percentile25, a[1].percentile50, a[1].percentile75,
-                           a[1].percentile85, a[1].percentile95]
+                           a[1].percentile85, a[1].percentile95])
                             return False
                     i = i + 1
 
