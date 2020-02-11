@@ -508,7 +508,7 @@ class MeshStatisticsLogic(ScriptedLoadableModuleLogic):
         file.close()
 
     def exportationFunction(self, directoryExport, exportCheckBoxState, ROIDict):
-        directory = directoryExport.directory.encode('utf-8')
+        directory = directoryExport.directory
         messageBox = ctk.ctkMessageBox()
         messageBox.setWindowTitle(' /!\ WARNING /!\ ')
         messageBox.setIcon(messageBox.Warning)
@@ -561,7 +561,7 @@ class MeshStatisticsLogic(ScriptedLoadableModuleLogic):
                     self.exportAllAsCSV(filename, ROIName, ROIDictValue)
 
     def ExportationValueOnEachPoint(self,directoryExport, ROIDict):
-        directory = directoryExport.directory.encode('utf-8')
+        directory = directoryExport.directory
         directoryPointValuesFolder = directory + '/ValuesOnEachPoint'
         messageBox = ctk.ctkMessageBox()
         messageBox.setWindowTitle(' /!\ WARNING /!\ ')
