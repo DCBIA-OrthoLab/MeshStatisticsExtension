@@ -397,24 +397,21 @@ class MeshStatisticsLogic(ScriptedLoadableModuleLogic):
     def computeMean(self, valueArray):
         #  valueArray is an array in which values to compute statistics on are stored
         return round(numpy.mean(valueArray), self.numberOfDecimals)
-    
+
     def computeMinMax(self, valueArray):
         #  valueArray is an array in which values to compute statistics on are stored
         return round(numpy.min(valueArray), self.numberOfDecimals), round(numpy.max(valueArray), self.numberOfDecimals)
-    
+
     def computeStandardDeviation(self, valueArray):
         #  valueArray is an array in which values to compute statistics on are stored
         return round(numpy.std(valueArray), self.numberOfDecimals)
-    
-    def computePercentile(self, valueArray, percent):
-        #  Function to compute different percentile
-        #  valueArray is an array in which values to compute statistics on are stored
-        #  percent is a value between 0 and 1
-        #  The lowest value is taken
-        valueArray = numpy.sort(valueArray)
-        index = (valueArray.size * percent) - 1
-        ceilIndex = int(math.ceil(index))
-        return round(valueArray[ceilIndex], self.numberOfDecimals)
+
+    def computeQuantiles(self, valueArray):
+        quantiles = [0.05, 0.15, 0.25, 0.50, 0.75, 0.85, 0.95]
+        quantile_values = numpy.quantile(valueArray, quantiles)
+        quantile_values = numpy.around(quantile_values, self.numberOfDecimals)
+        return quantile_values
+
 
     def computeAll(self, fieldArray, fieldState, ROIArray):
         bool, array = self.defineArray(fieldArray, ROIArray)
@@ -425,13 +422,16 @@ class MeshStatisticsLogic(ScriptedLoadableModuleLogic):
             fieldState.min, fieldState.max = self.computeMinMax(array)
             fieldState.mean = self.computeMean(array)
             fieldState.std = self.computeStandardDeviation(array)
-            fieldState.percentile5 = self.computePercentile(array, 0.05)
-            fieldState.percentile15 = self.computePercentile(array, 0.15)
-            fieldState.percentile25 = self.computePercentile(array, 0.25)
-            fieldState.percentile50 = self.computePercentile(array, 0.50)
-            fieldState.percentile75 = self.computePercentile(array, 0.75)
-            fieldState.percentile85 = self.computePercentile(array, 0.85)
-            fieldState.percentile95 = self.computePercentile(array, 0.95)
+
+            quantile_values = self.computeQuantiles(array)
+
+            fieldState.percentile5 = quantile_values[0]
+            fieldState.percentile15 = quantile_values[1]
+            fieldState.percentile25 = quantile_values[2]
+            fieldState.percentile50 = quantile_values[3]
+            fieldState.percentile75 = quantile_values[4]
+            fieldState.percentile85 = quantile_values[5]
+            fieldState.percentile95 = quantile_values[6]
 
     def writeFieldFile(self, fileWriter, modelDict):
         #  Function defined to export all statistics of a field concidering a file writer (fileWriter)
@@ -636,9 +636,9 @@ class MeshStatisticsTest(ScriptedLoadableModuleTest):
                                         0, ["AbsolutePointToPointDistance",
                                             "PointToPointAlongZ",
                                             "SignedMagNormDirDistance",""],
-                                        [[0.039, 5.766, 1.152, 0.821, 0.258, 0.459, 0.627, 0.958, 1.5, 1.727, 2.59],
-                                         [-3.631, 1.187, -0.478, 0.787, -1.912, -1.279, -0.854, -0.336, 0.03, 0.218, 0.57],
-                                         [-5.62, 0.947, -0.225, 0.786, -1.616, -0.542, -0.296, -0.037, 0.099, 0.238, 0.485],
+                                        [[0.039, 5.766, 1.152, 0.821, 0.258, 0.459, 0.628, 0.959, 1.498, 1.726, 2.587],
+                                         [-3.631, 1.187, -0.478, 0.787, -1.91, -1.278, -0.853, -0.335, 0.029, 0.218, 0.57],
+                                         [-5.62, 0.947, -0.225, 0.786, -1.612, -0.541, -0.296, -0.037, 0.098, 0.238, 0.485],
                                          []],
                                         "Test4-1"))
 
@@ -648,10 +648,10 @@ class MeshStatisticsTest(ScriptedLoadableModuleTest):
                                             "AbsolutePointToPointDistance",
                                             "PointToPointAlongY",
                                             "SignedPointToPointDistance",""],
-                                        [[0.001, 6.14, 0.54, 0.779, 0.018, 0.059, 0.11, 0.264, 0.558, 0.904, 2.328],
-                                         [0.016, 6.45, 1.696, 0.805, 0.347, 0.736, 1.16, 1.797, 2.213, 2.336, 2.828],
-                                         [-4.919, 0.897, -0.15, 0.704, -1.196, -0.719, -0.532, -0.026, 0.356, 0.472, 0.613],
-                                         [-6.45, 3.217, -0.218, 1.865, -2.78, -2.239, -1.943, -0.43, 1.696, 2.046, 2.301],
+                                        [[0.001, 6.14, 0.54, 0.779, 0.018, 0.06, 0.11, 0.266, 0.558, 0.903, 2.327],
+                                         [0.016, 6.45, 1.696, 0.805, 0.347, 0.736, 1.161, 1.797, 2.213, 2.336, 2.825],
+                                         [-4.919, 0.897, -0.15, 0.704, -1.195, -0.719, -0.532, -0.024, 0.356, 0.472, 0.613],
+                                         [-6.45, 3.217, -0.218, 1.865, -2.78, -2.238, -1.943, -0.423, 1.696, 2.046, 2.301],
                                          []],
                                         "Test4-2"))
         self.delayDisplay("Test4-3: Test on T2toT3")
@@ -659,9 +659,9 @@ class MeshStatisticsTest(ScriptedLoadableModuleTest):
                                         0, ["PointToPointAlongX",
                                             "PointToPointAlongY",
                                             "PointToPointAlongZ",""],
-                                        [[-2.542, 2.153, -0.233, 0.933, -1.802, -1.343, -0.929, -0.069, 0.386, 0.647, 1.273],
-                                         [-2.63, 2.266, 0.159, 0.923, -1.38, -0.904, -0.513, 0.309, 0.912, 1.074, 1.394],
-                                         [-3.431, 1.172, -0.956, 0.924, -2.388, -2.04, -1.665, -0.916, -0.28, 0.048, 0.626],
+                                        [[-2.542, 2.153, -0.233, 0.933, -1.802, -1.341, -0.928, -0.067, 0.386, 0.647, 1.273],
+                                         [-2.63, 2.266, 0.159, 0.923, -1.38, -0.903, -0.513, 0.309, 0.911, 1.074, 1.394],
+                                         [-3.431, 1.172, -0.956, 0.924, -2.388, -2.04, -1.665, -0.915, -0.281, 0.047, 0.625],
                                          []],
                                         "Test4-3"))
 
@@ -671,9 +671,9 @@ class MeshStatisticsTest(ScriptedLoadableModuleTest):
                                         1, ["AbsolutePointToPointDistance",
                                             "PointToPointAlongZ",
                                             "SignedMagNormDirDistance",""],
-                                        [[0.214, 4.152, 1.56, 0.671, 0.389, 0.895, 1.131, 1.584, 1.919, 2.063, 2.498],
-                                         [-3.025, 1.159, -0.639, 0.986, -1.955, -1.687, -1.584, -0.294, 0.135, 0.396, 0.716],
-                                         [-3.666, 0.947, -0.24, 0.807, -2.302, -0.667, -0.496, -0.076, 0.247, 0.377, 0.754],
+                                        [[0.214, 4.152, 1.56, 0.671, 0.396, 0.927, 1.143, 1.584, 1.913, 2.059, 2.369],
+                                         [-3.025, 1.159, -0.639, 0.986, -1.944, -1.676, -1.583, -0.294, 0.133, 0.394, 0.714],
+                                         [-3.666, 0.947, -0.24, 0.807, -2.009, -0.666, -0.487, -0.076, 0.243, 0.377, 0.745],
                                          []],
                                         "Test5-1"))
 
@@ -683,10 +683,10 @@ class MeshStatisticsTest(ScriptedLoadableModuleTest):
                                             "AbsolutePointToPointDistance",
                                             "PointToPointAlongY",
                                             "SignedPointToPointDistance",""],
-                                        [[0.001, 4.031, 0.887, 0.98, 0.057, 0.144, 0.232, 0.519, 0.94, 2.255, 3.202],
-                                         [1.529, 4.344, 2.293, 0.553, 1.608, 1.765, 1.879, 2.175, 2.544, 2.875, 3.412],
-                                         [-3.537, 0.806, -0.515, 0.914, -2.439, -1.552, -0.894, -0.256, 0.14, 0.288, 0.572],
-                                         [-4.344, 2.74, -1.265, 1.991, -3.412, -2.875, -2.489, -2.051, 1.583, 1.749, 2.363],
+                                        [[0.001, 4.031, 0.887, 0.98, 0.06, 0.146, 0.238, 0.519, 0.936, 2.247, 3.16],
+                                         [1.529, 4.344, 2.293, 0.553, 1.623, 1.784, 1.889, 2.175, 2.537, 2.868, 3.41],
+                                         [-3.537, 0.806, -0.515, 0.914, -2.425, -1.482, -0.893, -0.256, 0.131, 0.282, 0.557],
+                                         [-4.344, 2.74, -1.265, 1.991, -3.41, -2.868, -2.463, -2.051, 1.582, 1.73, 2.348],
                                          []],
                                         "Test5-2"))
         self.delayDisplay("Test5-3: Test on T2toT3")
@@ -694,9 +694,9 @@ class MeshStatisticsTest(ScriptedLoadableModuleTest):
                                         1, ["PointToPointAlongX",
                                             "PointToPointAlongY",
                                             "PointToPointAlongZ",""],
-                                        [[-2.542, 2.153, 0.203, 1.306, -2.003, -1.563, -0.975, 0.473, 1.268, 1.698, 1.999],
-                                         [-2.593, 1.354, -0.315, 1.02, -2.201, -1.314, -1.138, -0.319, 0.651, 0.873, 0.995],
-                                         [-3.431, 0.582, -1.32, 1.04, -3.036, -2.22, -2.097, -1.62, -0.199, -0.1, 0.03],
+                                        [[-2.542, 2.153, 0.203, 1.306, -1.964, -1.56, -0.875, 0.473, 1.218, 1.684, 1.997],
+                                         [-2.593, 1.354, -0.315, 1.02, -2.04, -1.306, -1.125, -0.319, 0.649, 0.853, 0.978],
+                                         [-3.431, 0.582, -1.32, 1.04, -2.994, -2.212, -2.095, -1.62, -0.202, -0.109, 0.026],
                                          []],
                                         "Test5-3"))
 
@@ -782,33 +782,29 @@ class MeshStatisticsTest(ScriptedLoadableModuleTest):
 
     def testPercentileFunction(self):
         logic = MeshStatisticsLogic()
-        # pair number of value:
         print(' TEST Percentile ')
-        print('     TEST Pair number of values ')
-        array = self.defineArrays(logic, 1, 1001)
-        percentile5 = logic.computePercentile(array, 0.05)
-        percentile15 = logic.computePercentile(array, 0.15)
-        percentile25 = logic.computePercentile(array, 0.25)
-        percentile50 = logic.computePercentile(array, 0.50)
-        percentile75 = logic.computePercentile(array, 0.75)
-        percentile85 = logic.computePercentile(array, 0.85)
-        percentile95 = logic.computePercentile(array, 0.95)
-        if percentile5 != 50 or percentile15 != 150 or percentile25 != 250 or percentile50 != 500 or percentile75 != 750 or percentile85 != 850 or percentile95 != 950:
+
+        # odd number of value:
+        print('     TEST odd number of values ')
+        array = self.defineArrays(logic, 0, 1001)
+        quantiles = logic.computeQuantiles(array)
+        actual = tuple(quantiles)
+        expected = (50, 150, 250, 500, 750, 850, 950)
+
+        if actual != expected:
             print('         Failed ! ')
             return False
         else:
             print('         Passed')
-        # odd number of value:
-        print('     TEST Odd number of values ')
-        array = self.defineArrays(logic, 1, 1000)
-        percentile5 = logic.computePercentile(array, 0.05)
-        percentile15 = logic.computePercentile(array, 0.15)
-        percentile25 = logic.computePercentile(array, 0.25)
-        percentile50 = logic.computePercentile(array, 0.50)
-        percentile75 = logic.computePercentile(array, 0.75)
-        percentile85 = logic.computePercentile(array, 0.85)
-        percentile95 = logic.computePercentile(array, 0.95)
-        if percentile5 != 50 or percentile15 != 150 or percentile25 != 250 or percentile50 != 500 or percentile75 != 750 or percentile85 != 850 or percentile95 != 950:
+
+        # even number of value:
+        print('     TEST even number of values ')
+        array = self.defineArrays(logic, 1, 1001)
+        quantiles = logic.computeQuantiles(array)
+        actual = tuple(quantiles)
+        expected = (50.95, 150.85, 250.75, 500.50, 750.25, 850.15, 950.05)
+
+        if actual != expected:
             print('         Failed ! ')
             return False
         else:
