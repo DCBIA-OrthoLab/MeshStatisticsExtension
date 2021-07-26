@@ -285,7 +285,7 @@ class MeshStatisticsLogic(ScriptedLoadableModuleLogic):
         numberOfRows = fieldDictionaryValue.__len__()
         statTable.setRowCount(numberOfRows)
         i = numberOfRows - 1
-        statTable.setMinimumHeight(numberOfRows*35)
+        statTable.setMinimumHeight(0)  # fit to contents
         statTable.setMinimumWidth(55)
 
         statTable.setColumnCount(12)
