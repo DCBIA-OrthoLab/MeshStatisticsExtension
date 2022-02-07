@@ -415,7 +415,7 @@ class MeshStatisticsLogic(ScriptedLoadableModuleLogic):
 
     def computeAll(self, fieldArray, fieldState, ROIArray):
         bool, array = self.defineArray(fieldArray, ROIArray)
-        if len(array) is 0:
+        if len(array) == 0:
             slicer.util.errorDisplay("The ROI is empty")
             return
         if bool:
@@ -484,7 +484,7 @@ class MeshStatisticsLogic(ScriptedLoadableModuleLogic):
         file = open(filename, 'w')
         cw = csv.writer(file, delimiter=',')
         bool, arrayToReturn = self.defineArray(fieldArray, ROIArray)
-        if len(arrayToReturn) is 0:
+        if len(arrayToReturn) == 0:
             slicer.util.errorDisplay("The ROI is empty")
             return
         if bool:
