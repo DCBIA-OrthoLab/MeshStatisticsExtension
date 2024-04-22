@@ -4,12 +4,12 @@ project(MeshStatisticsExtension)
 
 #-----------------------------------------------------------------------------
 # Extension meta-information
-set(EXTENSION_HOMEPAGE "http://www.slicer.org/slicerWiki/index.php/Documentation/Nightly/Extensions/MeshStatistics")
+set(EXTENSION_HOMEPAGE "https://www.slicer.org/slicerWiki/index.php/Documentation/Nightly/Extensions/MeshStatistics")
 set(EXTENSION_CATEGORY "Shape Analysis")
 set(EXTENSION_CONTRIBUTORS "Lucie Macron (University of Michigan)")
 set(EXTENSION_DESCRIPTION "Mesh Statistics allows users to compute descriptive statistics over specific and predefined regions")
 set(EXTENSION_ICONURL "https://raw.githubusercontent.com/DCBIA-OrthoLab/MeshStatisticsExtension/master/MeshStatistics/Resources/Icons/MeshStatistics.png")
-set(EXTENSION_SCREENSHOTURLS "http://www.slicer.org/slicerWiki/index.php/File:MeshStatistics_Interface.png")
+set(EXTENSION_SCREENSHOTURLS "https://www.slicer.org/slicerWiki/index.php/File:MeshStatistics_Interface.png")
 set(EXTENSION_DEPENDS ModelToModelDistance)
 
 #-----------------------------------------------------------------------------
