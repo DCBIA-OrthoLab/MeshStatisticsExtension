@@ -510,7 +510,7 @@ class MeshStatisticsLogic(ScriptedLoadableModuleLogic):
     def exportationFunction(self, directoryExport, exportCheckBoxState, ROIDict):
         directory = directoryExport.directory
         messageBox = ctk.ctkMessageBox()
-        messageBox.setWindowTitle(' /!\ WARNING /!\ ')
+        messageBox.setWindowTitle('WARNING')
         messageBox.setIcon(messageBox.Warning)
 
         if exportCheckBoxState:  # if exportation in different files
@@ -564,7 +564,7 @@ class MeshStatisticsLogic(ScriptedLoadableModuleLogic):
         directory = directoryExport.directory
         directoryPointValuesFolder = directory + '/ValuesOnEachPoint'
         messageBox = ctk.ctkMessageBox()
-        messageBox.setWindowTitle(' /!\ WARNING /!\ ')
+        messageBox.setWindowTitle('WARNING')
         messageBox.setIcon(messageBox.Warning)
         if not os.path.exists(directoryPointValuesFolder):
             os.mkdir(directoryPointValuesFolder)
